@@ -52,6 +52,21 @@ class S3Browser
     rescue Aws::S3::Errors::NoSuchBucket
       display_error("Bucket does not exist. Check your spelling and try again.")
       return nil
+    rescue Aws::S3::Errors::AccessDenied
+      display_error("Access denied to the bucket. Check your permissions and try again.")
+      return nil
+    rescue Aws::S3::Errors::InvalidBucketName
+      display_error("The bucket name format is invalid. Please enter a valid bucket name.")
+      return nil
+    rescue Seahorse::Client::NetworkingError
+      display_error("Network error: Unable to connect to AWS S3. Check your connection and try again.")
+      return nil
+    rescue Aws::S3::Errors::RequestTimeout
+      display_error("Request timed out. The network may be slow or unresponsive. Try again later.")
+      return nil
+    rescue Aws::S3::Errors::Throttling
+      display_error("Rate limit exceeded. Please wait a moment and try again.")
+      return nil
     rescue StandardError => e
       display_error("An error occurred: #{e.message}")
       return nil
