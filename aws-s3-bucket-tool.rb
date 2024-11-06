@@ -25,12 +25,37 @@ class S3Browser
     input
   end
 
-  # List objects in the current bucket folder
+  # Display an error message above the input line.
+  def display_error(message)
+    @window.setpos(Curses.lines - 5, 0)
+    @window.addstr(message.ljust(Curses.cols))
+    @window.addstr("Press any key to continue.")
+    @window.refresh
+    @window.getch
+  end
+
+  # Clears the line(s)
+  def clear_lines(lines)
+    for line in lines
+      @window.setpos(line, 0)
+      @window.addstr(" " * Curses.cols) # Clear error line
+    end
+  end
+
+  # List objects in the current bucket folder.
   def list_objects(bucket, prefix = "")
-    response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
-    folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
-    files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
-    files.reject! { |f| f.include?("/") && f != prefix } # Remove subfolder items
+    begin
+      response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
+      folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
+      files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
+      files.reject! { |f| f.include?("/") && f != prefix }
+    rescue Aws::S3::Errors::NoSuchBucket
+      display_error("Bucket does not exist. Check your spelling and try again.")
+      return nil
+    rescue StandardError => e
+      display_error("An error occurred: #{e.message}")
+      return nil
+    end
 
     folders + files
   end
@@ -87,6 +112,7 @@ class S3Browser
 
     loop do
       items = list_objects(bucket, prefix)
+      return if items.nil? # Exit if there was an error listing objects
       display_page(bucket, prefix, items, page)
       input = prompt_user("Input: ").downcase
 
@@ -153,7 +179,17 @@ def main(s3)
     window = Curses.stdscr
     window.clear
     browser = S3Browser.new(s3, window)
-    bucket = browser.prompt_user("Enter the S3 bucket name: ")
+
+    # Loop to prompt for a valid bucket name until successful
+    bucket = nil
+    loop do
+      browser.clear_lines(Curses.lines - 5 .. Curses.lines - 3)
+      bucket = browser.prompt_user("Enter the S3 bucket name: ")
+
+      # Break if valid bucket, otherwise display error
+      break if !browser.list_objects(bucket).nil?
+    end
+
     browser.navigate_bucket(bucket)
   ensure
     Curses.close_screen
