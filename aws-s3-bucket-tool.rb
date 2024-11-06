@@ -5,9 +5,8 @@ require 'curses'
 
 PAGE_SIZE = 20 # Number of items per page
 
-class S3Browser
-  def initialize(s3, window)
-    @s3 = s3
+class UI
+  def initialize(window)
     @window = window
   end
 
@@ -42,64 +41,6 @@ class S3Browser
     end
   end
 
-  # List objects in the current bucket folder.
-  def list_objects(bucket, prefix = "")
-    begin
-      response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
-      folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
-      files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
-      files.reject! { |f| f.include?("/") && f != prefix }
-    rescue Aws::S3::Errors::NoSuchBucket
-      display_error("Bucket does not exist. Check your spelling and try again.")
-      return nil
-    rescue Aws::S3::Errors::AccessDenied
-      display_error("Access denied to the bucket. Check your permissions and try again.")
-      return nil
-    rescue Aws::S3::Errors::InvalidBucketName
-      display_error("The bucket name format is invalid. Please enter a valid bucket name.")
-      return nil
-    rescue Seahorse::Client::NetworkingError
-      display_error("Network error: Unable to connect to AWS S3. Check your connection and try again.")
-      return nil
-    rescue Aws::S3::Errors::RequestTimeout
-      display_error("Request timed out. The network may be slow or unresponsive. Try again later.")
-      return nil
-    rescue Aws::S3::Errors::Throttling
-      display_error("Rate limit exceeded. Please wait a moment and try again.")
-      return nil
-    rescue StandardError => e
-      display_error("An error occurred: #{e.message}")
-      return nil
-    end
-
-    folders + files
-  end
-
-  # Download a file and confirm to the user
-  def download_file(bucket, file_key)
-    default_name = File.basename(file_key)
-    prompt = "Enter a new name for the file or press Enter to keep '#{default_name}': "
-    download_name = prompt_user(prompt)
-    download_name = default_name if download_name.empty?
-
-    begin
-      @s3.get_object(response_target: download_name, bucket: bucket, key: file_key)
-      @window.setpos(Curses.lines - 3, 0)
-      @window.addstr("Downloaded '#{download_name}'. Press any key to continue.".ljust(Curses.cols))
-    rescue Aws::S3::Errors::NoSuchKey
-      display_error("The file does not exist in the bucket.")
-    rescue Aws::S3::Errors::AccessDenied
-      display_error("Access denied. You do not have permission to download this file.")
-    rescue Seahorse::Client::NetworkingError
-      display_error("Network error: Unable to download file. Check your connection and try again.")
-    rescue StandardError => e
-      display_error("An unexpected error occurred: #{e.message}")
-    ensure
-      @window.refresh
-      @window.getch
-    end
-  end
-
   # Render UI with pagination
   def display_page(bucket, prefix, items, page)
     @window.clear
@@ -115,12 +56,12 @@ class S3Browser
     # Display page navigation prompts
     @window.addstr("\n")
     @window.addstr(if page == 0 && page_count > 1
-                     "(Press 'F' for next page.)"
-                   elsif page + 1 == page_count && page_count > 1
-                     "(Press 'P' for previous page.)"
-                   elsif page_count > 1
-                     "(Press 'P' for previous page. Press 'F' for next page.)"
-                   end.to_s)
+                      "(Press 'F' for next page.)"
+                    elsif page + 1 == page_count && page_count > 1
+                      "(Press 'P' for previous page.)"
+                    elsif page_count > 1
+                      "(Press 'P' for previous page. Press 'F' for next page.)"
+                    end.to_s)
 
     # Options bar
     @window.setpos(Curses.lines - 1, 0)
@@ -128,6 +69,86 @@ class S3Browser
       @window.addstr("[H]: Help | [0-9]: Select item | [N]: New Bucket URL | [B]: Back | [P]: Prev Page | [F]: Next Page | [Q]: Quit".ljust(Curses.cols))
     end
     @window.refresh
+  end
+
+  # Display help information
+  def display_help
+    help_text = "
+      [0-9] to select item
+      [Q] to quit
+      [N] to change bucket
+      [B] to go back
+      [P] to prev page
+      [F] to next page
+      Press any key to continue..."
+    @window.setpos(Curses.lines - (help_text.lines.count + 3), 0)
+    @window.addstr(help_text.ljust(Curses.cols))
+    @window.refresh
+    @window.getch
+  end
+end
+
+class S3Browser
+  def initialize(s3, ui)
+    @s3 = s3
+    @ui = ui
+  end
+
+  # List objects in the current bucket folder.
+  def list_objects(bucket, prefix = "")
+    begin
+      response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
+      folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
+      files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
+      files.reject! { |f| f.include?("/") && f != prefix }
+    rescue Aws::S3::Errors::NoSuchBucket
+      @ui.display_error("Bucket does not exist. Check your spelling and try again.")
+      return nil
+    rescue Aws::S3::Errors::AccessDenied
+      @ui.display_error("Access denied to the bucket. Check your permissions and try again.")
+      return nil
+    rescue Aws::S3::Errors::InvalidBucketName
+      @ui.display_error("The bucket name format is invalid. Please enter a valid bucket name.")
+      return nil
+    rescue Seahorse::Client::NetworkingError
+      @ui.display_error("Network error: Unable to connect to AWS S3. Check your connection and try again.")
+      return nil
+    rescue Aws::S3::Errors::RequestTimeout
+      @ui.display_error("Request timed out. The network may be slow or unresponsive. Try again later.")
+      return nil
+    rescue Aws::S3::Errors::Throttling
+      @ui.display_error("Rate limit exceeded. Please wait a moment and try again.")
+      return nil
+    rescue StandardError => e
+      @ui.display_error("An error occurred: #{e.message}")
+      return nil
+    end
+
+    folders + files
+  end
+
+  # Download a file and confirm to the user
+  def download_file(bucket, file_key)
+    default_name = File.basename(file_key)
+    prompt = "Enter a new name for the file or press Enter to keep '#{default_name}': "
+    download_name = @ui.prompt_user(prompt)
+    download_name = default_name if download_name.empty?
+
+    begin
+      @s3.get_object(response_target: download_name, bucket: bucket, key: file_key)
+      @ui.display_error("Downloaded '#{download_name}'.")
+    rescue Aws::S3::Errors::NoSuchKey
+      @ui.display_error("The file does not exist in the bucket.")
+    rescue Aws::S3::Errors::AccessDenied
+      @ui.display_error("Access denied. You do not have permission to download this file.")
+    rescue Seahorse::Client::NetworkingError
+      @ui.display_error("Network error: Unable to download file. Check your connection and try again.")
+    rescue StandardError => e
+      @ui.display_error("An unexpected error occurred: #{e.message}")
+    # ensure
+    #   @window.refresh
+    #   @window.getch
+    end
   end
 
   # Navigate within the bucket and interact with files
@@ -139,14 +160,14 @@ class S3Browser
     loop do
       items = list_objects(bucket, prefix)
       return if items.nil? # Exit if there was an error listing objects
-      display_page(bucket, prefix, items, page)
-      input = prompt_user("Input: ").downcase
+      @ui.display_page(bucket, prefix, items, page)
+      input = @ui.prompt_user("Input: ").downcase
 
       case input
       when "q" then break
-      when "h" then display_help
+      when "h" then @ui.display_help
       when "n"
-        bucket = prompt_user("Enter new bucket name: ")
+        bucket = @ui.prompt_user("Enter new bucket name: ")
         prefix = ""
         history.clear
         page = 0
@@ -171,28 +192,13 @@ class S3Browser
           end
         end
       else
-        @window.setpos(Curses.lines - 4, 0)
-        @window.addstr("Invalid option. Press 'H' for help.".ljust(Curses.cols))
-        @window.refresh
-        @window.getch
+        @ui.display_error("Invalid option. Press 'H' for help.")
+        # @window.setpos(Curses.lines - 4, 0)
+        # @window.addstr("Invalid option. Press 'H' for help.".ljust(Curses.cols))
+        # @window.refresh
+        # @window.getch
       end
     end
-  end
-
-  # Display help information
-  def display_help
-    help_text = "
-      [0-9] to select item
-      [Q] to quit
-      [N] to change bucket
-      [B] to go back
-      [P] to prev page
-      [F] to next page
-      Press any key to continue..."
-    @window.setpos(Curses.lines - (help_text.lines.count + 3), 0)
-    @window.addstr(help_text.ljust(Curses.cols))
-    @window.refresh
-    @window.getch
   end
 end
 
@@ -204,13 +210,14 @@ def main(s3)
   begin
     window = Curses.stdscr
     window.clear
-    browser = S3Browser.new(s3, window)
+    ui = UI.new(window)
+    browser = S3Browser.new(s3, ui)
 
     # Loop to prompt for a valid bucket name until successful
     bucket = nil
     loop do
-      browser.clear_lines(Curses.lines - 5 .. Curses.lines - 3)
-      bucket = browser.prompt_user("Enter the S3 bucket name: ")
+      ui.clear_lines(Curses.lines - 5 .. Curses.lines - 3)
+      bucket = ui.prompt_user("Enter the S3 bucket name: ")
 
       # Break if valid bucket, otherwise display error
       break if !browser.list_objects(bucket).nil?
@@ -218,13 +225,9 @@ def main(s3)
 
     browser.navigate_bucket(bucket)
   rescue Aws::Sigv4::Errors::MissingCredentialsError
-    window.addstr("AWS credentials not found. Please configure your AWS credentials.")
-    window.refresh
-    window.getch
+    ui.display_error("AWS credentials not found. Please configure your AWS credentials.")
   rescue Aws::Errors::ServiceError => e
-    window.addstr("An error occurred with AWS: #{e.message}")
-    window.refresh
-    window.getch
+    ui.display_error("An error occurred with AWS: #{e.message}")
   ensure
     Curses.close_screen
   end
