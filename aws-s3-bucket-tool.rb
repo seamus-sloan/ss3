@@ -17,22 +17,19 @@ def main(s3)
     ui = UI.new(window, PAGE_SIZE)
     browser = S3Browser.new(s3, ui, PAGE_SIZE)
 
-    # Prompt for a valid bucket name until one is provided
+    # Loop to prompt for a valid bucket name until successful
     loop do
       ui.clear_error_message
-      bucket = ui.prompt_user("Enter the S3 bucket name: ").strip
-      next if bucket.empty? # Retry if input is blank
+      bucket = ARGV[0] || ui.prompt_user("Enter the S3 bucket name: ").strip
+      next if bucket.empty?
 
-      # Check if the bucket is valid by attempting to list objects
-      items = browser.list_objects(bucket)
-
-      # If there are items in the bucket, continue into normal navigation.
-      if items
+      # Check if the bucket is accessible using connect_to_bucket
+      if browser.connect_to_bucket(bucket)
+        # Proceed if connection is successful
         result = browser.navigate_bucket(bucket)
-
-        # When trying to use a new bucket from navigate_bucket, restart
-        # the process to break out of both loops & reenter the bucket name.
         break unless result == :restart
+      else
+        ARGV[0] = nil # Reset argument to force prompt if the initial bucket name is invalid
       end
     end
 

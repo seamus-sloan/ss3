@@ -7,35 +7,43 @@ class S3Browser
     page_size = page_size
   end
 
-  # List objects in the current bucket folder.
-  def list_objects(bucket, prefix = "")
+  # Attempts to connect to the specified bucket to check accessibility
+  def connect_to_bucket(bucket)
     begin
-      response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
-      folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
-      files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
-      files.reject! { |f| f.include?("/") && f != prefix }
+      # Attempt to list objects with an empty prefix to check access
+      @s3.list_objects_v2(bucket: bucket, prefix: '', max_keys: 1)
+      true # Connection successful, return true
+
     rescue Aws::S3::Errors::NoSuchBucket
-      @ui.display_error("Bucket '#{bucket}' does not exist. Check the spelling or enter a new bucket name.")
-      return nil
+      @ui.display_error("Bucket '#{bucket}' does not exist. Please check the name.")
+      false
     rescue Aws::S3::Errors::InvalidBucketName
       @ui.display_error("Invalid bucket name format. Please enter a valid bucket name.")
-      return nil
+      false
     rescue Aws::S3::Errors::AccessDenied
       @ui.display_error("Access denied to bucket '#{bucket}'. Check your permissions.")
-      return nil
+      false
     rescue Seahorse::Client::NetworkingError
-      @ui.display_error("Network error: Unable to connect to AWS S3. Check your connection and try again.")
-      return nil
+      @ui.display_error("Network error: Unable to connect to AWS S3. Check your connection.")
+      false
     rescue Aws::S3::Errors::RequestTimeout
-      @ui.display_error("Request timed out. The network may be slow or unresponsive. Try again later.")
-      return nil
+      @ui.display_error("Request timed out. The network may be slow. Try again later.")
+      false
     rescue Aws::S3::Errors::Throttling
       @ui.display_error("Rate limit exceeded. Please wait a moment and try again.")
-      return nil
+      false
     rescue StandardError => e
       @ui.display_error("An unexpected error occurred: #{e.message}")
-      return nil
+      false
     end
+  end
+
+  # List objects in the current bucket folder.
+  def list_objects(bucket, prefix = "")
+    response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
+    folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
+    files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
+    files.reject! { |f| f.include?("/") && f != prefix }
 
     folders + files
   end
