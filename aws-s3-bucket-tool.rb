@@ -217,6 +217,14 @@ def main(s3)
     end
 
     browser.navigate_bucket(bucket)
+  rescue Aws::Sigv4::Errors::MissingCredentialsError
+    window.addstr("AWS credentials not found. Please configure your AWS credentials.")
+    window.refresh
+    window.getch
+  rescue Aws::Errors::ServiceError => e
+    window.addstr("An error occurred with AWS: #{e.message}")
+    window.refresh
+    window.getch
   ensure
     Curses.close_screen
   end
