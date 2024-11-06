@@ -70,11 +70,11 @@ def display_ui(window, bucket, prefix, items, page)
 
   window.addstr("\n")
   if page == 0 && page_count > 1
-    window.addstr("Press 'F' for next page.")
+    window.addstr("(Press 'F' for next page.)")
   elsif page + 1 == page_count && page_count > 1
-    window.addstr("Press 'P' for previous page.")
+    window.addstr("(Press 'P' for previous page.)")
   elsif page != 0 && page_count > 1
-    window.addstr("Press 'P' for previous page. Press 'F' for next page.")
+    window.addstr("(Press 'P' for previous page. Press 'F' for next page.)")
   end
 
   # Bottom bar for options
@@ -99,6 +99,7 @@ def navigate_bucket(s3, bucket, window)
     case input
     when "q"
       break
+
     when "h"
       window.setpos(Curses.lines - 14, 0)
       window.addstr("
@@ -111,31 +112,37 @@ def navigate_bucket(s3, bucket, window)
       .ljust(Curses.cols))
       window.refresh
       window.getch
+
     when "n"
       bucket = inputHelper(window, "Enter new bucket name: ")
       prefix = ""
       history.clear
       page = 0
+
     when "b"
       prefix = history.pop || ""
       page = 0
+
     when "f"
       page += 1 if (page + 1) * PAGE_SIZE < items.size
+
     when "p"
       page -= 1 if page > 0
+
     when /^[0-9]+$/
       index = input.to_i
       if index >= 0 && index < items.size
         selected = items[index]
         new_prefix = "#{prefix}#{selected}".chomp('/')
-        if selected.end_with?("/") # Folder
+        if selected.end_with?("/") # Folder is selected.
           history.push(prefix)
           prefix = "#{new_prefix}/"
-          page = 0 # Reset to the first page in the new folder
-        else # File
+          page = 0
+        else # File is selected.
           download_file(s3, bucket, new_prefix, window)
         end
       end
+
     else
       window.setpos(Curses.lines - 4, 0)
       window.addstr("Invalid option. Press 'H' for help.".ljust(Curses.cols))
