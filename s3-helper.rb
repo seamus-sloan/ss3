@@ -40,7 +40,7 @@ class S3Browser
     folders + files
   end
 
-  # Download a file and confirm to the user
+  # Download a file and confirm to the user.
   def download_file(bucket, file_key)
     default_name = File.basename(file_key)
     prompt = "Enter a new name for the file or press Enter to keep '#{default_name}': "
@@ -58,13 +58,10 @@ class S3Browser
       @ui.display_error("Network error: Unable to download file. Check your connection and try again.")
     rescue StandardError => e
       @ui.display_error("An unexpected error occurred: #{e.message}")
-    # ensure
-    #   @window.refresh
-    #   @window.getch
     end
   end
 
-  # Navigate within the bucket and interact with files
+  # Navigate within the bucket and interact with files.
   def navigate_bucket(bucket)
     path = "" # The current path in the bucket
     history = [] # History of bucket traversal paths
@@ -86,7 +83,7 @@ class S3Browser
       when "q" then break
       when "h" then @ui.display_help
       when "n"
-        return :restart # Signal to restart the application
+        return :restart # Signal to break out of this loop & restart
       when "b"
         path = history.pop || ""
         page = 0

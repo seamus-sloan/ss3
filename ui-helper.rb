@@ -29,20 +29,21 @@ class UI
     @window.getch
   end
 
-  # Clears the specified line(s)
+  # Clears the specified line(s).
   def clear_lines(lines)
     Array(lines).each do |line|
       @window.setpos(line, 0)
-      @window.addstr(" " * Curses.cols) # Clear each line
+      @window.addstr(" " * Curses.cols)
     end
     @window.refresh
   end
 
+  # Clears the error message, continue text, and input lines.
   def clear_error_message
     clear_lines(Curses.lines - 5 .. Curses.lines - 3)
   end
 
-  # Render UI with pagination
+  # Render UI with pagination.
   def display_page(bucket, prefix, items, page)
     @window.clear
     start_index = page * @page_size
@@ -72,7 +73,7 @@ class UI
     @window.refresh
   end
 
-  # Display help information
+  # Display help information.
   def display_help
     help_text = "
       [0-9] to select item

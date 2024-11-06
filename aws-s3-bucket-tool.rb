@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+
 require_relative "ui-helper"
 require_relative "s3-helper"
 require 'aws-sdk-s3'
@@ -6,8 +7,6 @@ require 'curses'
 
 PAGE_SIZE = 20 # Number of items per page
 
-
-# Main function to initialize Curses and start navigation
 def main(s3)
   Curses.init_screen
   Curses.curs_set(0)
@@ -26,10 +25,14 @@ def main(s3)
 
       # Check if the bucket is valid by attempting to list objects
       items = browser.list_objects(bucket)
+
+      # If there are items in the bucket, continue into normal navigation.
       if items
-        # Only proceed if the bucket is valid
         result = browser.navigate_bucket(bucket)
-        break unless result == :restart # Exit unless :restart is returned
+
+        # When trying to use a new bucket from navigate_bucket, restart
+        # the process to break out of both loops & reenter the bucket name.
+        break unless result == :restart
       end
     end
 
