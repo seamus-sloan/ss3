@@ -82,11 +82,22 @@ class S3Browser
     download_name = prompt_user(prompt)
     download_name = default_name if download_name.empty?
 
-    @s3.get_object(response_target: download_name, bucket: bucket, key: file_key)
-    @window.setpos(Curses.lines - 3, 0)
-    @window.addstr("Downloaded '#{download_name}'. Press any key to continue.".ljust(Curses.cols))
-    @window.refresh
-    @window.getch
+    begin
+      @s3.get_object(response_target: download_name, bucket: bucket, key: file_key)
+      @window.setpos(Curses.lines - 3, 0)
+      @window.addstr("Downloaded '#{download_name}'. Press any key to continue.".ljust(Curses.cols))
+    rescue Aws::S3::Errors::NoSuchKey
+      display_error("The file does not exist in the bucket.")
+    rescue Aws::S3::Errors::AccessDenied
+      display_error("Access denied. You do not have permission to download this file.")
+    rescue Seahorse::Client::NetworkingError
+      display_error("Network error: Unable to download file. Check your connection and try again.")
+    rescue StandardError => e
+      display_error("An unexpected error occurred: #{e.message}")
+    ensure
+      @window.refresh
+      @window.getch
+    end
   end
 
   # Render UI with pagination
