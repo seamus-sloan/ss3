@@ -3,9 +3,21 @@
 require 'aws-sdk-s3'
 require 'curses'
 
-# Initialize AWS S3 client
-s3 = Aws::S3::Client.new
-PAGE_SIZE = 10 # Set the number of items to display per page
+PAGE_SIZE = 20 # Number of items per page
+
+# Prompt the user with a message & return their stripped input.
+def inputHelper(window, prompt)
+  window.setpos(Curses.lines - 3, 0)
+  window.addstr(prompt)
+
+  Curses.curs_set(1)
+  Curses.echo
+  value = window.getstr.strip
+  Curses.noecho
+  Curses.curs_set(0)
+
+  value
+end
 
 # Function to list objects in the current folder
 def list_objects(s3, bucket, prefix = "")
@@ -18,24 +30,25 @@ def list_objects(s3, bucket, prefix = "")
   files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
   files.reject! { |f| f.include?("/") && f != prefix } # Remove subfolder items
 
-  folders + files # Return folders and files in combined array
+  folders + files
 end
 
-# Function to download a file
+# Function to download a file.
 def download_file(s3, bucket, file_key, window)
+  # Gather the file name & prompt for a new name if desired.
   default_name = File.basename(file_key)
-  window.setpos(Curses.lines - 3, 0)
-  window.addstr("Enter a new name for the file or press Enter to keep '#{default_name}': ")
-  Curses.curs_set(1)
-  Curses.echo
-  download_name = window.getstr.strip
+  prompt = "Enter a new name for the file or press Enter to keep '#{default_name}': "
+  download_name = inputHelper(window, prompt)
   download_name = default_name if download_name.empty?
-  Curses.noecho
-  Curses.curs_set(0)
+
+  # Download the file
   s3.get_object(response_target: download_name, bucket: bucket, key: file_key)
+
+  # Show the downloaded confirmation message
   window.setpos(Curses.lines - 3, 0)
-  window.addstr("Downloaded '#{download_name}'".ljust(Curses.cols))
+  window.addstr("Downloaded '#{download_name}'. Press any key to continue.".ljust(Curses.cols))
   window.refresh
+  window.getch
 end
 
 # Function to display the UI with pagination
@@ -47,11 +60,21 @@ def display_ui(window, bucket, prefix, items, page)
   end_index = [start_index + PAGE_SIZE, items.size].min
 
   # Display current bucket path and contents with pagination info
+  page_count = (items.size / PAGE_SIZE.to_f).ceil
   window.setpos(0, 0)
-  window.addstr("Current Bucket: #{bucket} /#{prefix} (Page #{page + 1} of #{(items.size / PAGE_SIZE.to_f).ceil})")
+  window.addstr("Current Bucket: #{bucket} /#{prefix} (Page #{page + 1} of #{page_count})")
   window.addstr("\nContents:\n")
   items[start_index...end_index].each_with_index do |item, index|
     window.addstr("[#{start_index + index}] #{item}\n")
+  end
+
+  window.addstr("\n")
+  if page == 0 && page_count > 1
+    window.addstr("Press 'F' for next page.")
+  elsif page + 1 == page_count && page_count > 1
+    window.addstr("Press 'P' for previous page.")
+  elsif page != 0 && page_count > 1
+    window.addstr("Press 'P' for previous page. Press 'F' for next page.")
   end
 
   # Bottom bar for options
@@ -70,34 +93,26 @@ def navigate_bucket(s3, bucket, window)
 
   loop do
     items = list_objects(s3, bucket, prefix)
-    display_ui(window, bucket, prefix, items, page) # Display the UI with updated contents
-
-    # Input prompt (one line above the bottom options bar)
-    window.setpos(Curses.lines - 3, 0)
-    window.addstr("Input: ".ljust(Curses.cols))
-    window.refresh
-    Curses.curs_set(1) # Show cursor for input
-    Curses.echo         # Enable input echoing
-    input = window.getstr.strip.downcase
-    Curses.noecho       # Disable input echoing after input is captured
-    Curses.curs_set(0)  # Hide cursor
+    display_ui(window, bucket, prefix, items, page)
+    input = inputHelper(window, "Input: ").downcase
 
     case input
     when "q"
       break
     when "h"
-      window.setpos(Curses.lines - 3, 0)
-      window.addstr("Use [0-9] to select item, [Q] to quit, [N] to change bucket, [B] to go back, [P] to prev page, [F] to next page".ljust(Curses.cols))
+      window.setpos(Curses.lines - 14, 0)
+      window.addstr("
+        [0-9] to select item\n
+        [Q] to quit\n
+        [N] to change bucket\n
+        [B] to go back\n
+        [P] to prev page\n
+        [F] to next page"
+      .ljust(Curses.cols))
       window.refresh
       window.getch
     when "n"
-      window.setpos(Curses.lines - 3, 0)
-      window.addstr("Enter new bucket name: ".ljust(Curses.cols))
-      Curses.curs_set(1)
-      Curses.echo
-      bucket = window.getstr.strip
-      Curses.noecho
-      Curses.curs_set(0)
+      bucket = inputHelper(window, "Enter new bucket name: ")
       prefix = ""
       history.clear
       page = 0
@@ -122,7 +137,7 @@ def navigate_bucket(s3, bucket, window)
         end
       end
     else
-      window.setpos(Curses.lines - 3, 0)
+      window.setpos(Curses.lines - 4, 0)
       window.addstr("Invalid option. Press 'H' for help.".ljust(Curses.cols))
       window.refresh
       window.getch
@@ -133,23 +148,17 @@ end
 # Start program
 def main(s3)
   Curses.init_screen
-  Curses.curs_set(0) # Hide cursor for full-screen mode
-  Curses.noecho # Disable echoing of typed characters
+  Curses.curs_set(0)
+  Curses.noecho
   begin
     window = Curses.stdscr
     window.clear
-
-    window.setpos(0, 0)
-    window.addstr("Enter the S3 bucket name: ")
-    Curses.curs_set(1)
-    Curses.echo
-    bucket = window.getstr.strip
-    Curses.noecho
-    Curses.curs_set(0)
+    bucket = inputHelper(window, "Enter the S3 bucket name: ")
     navigate_bucket(s3, bucket, window)
   ensure
     Curses.close_screen
   end
 end
 
+s3 = Aws::S3::Client.new
 main(s3)
