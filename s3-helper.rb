@@ -148,11 +148,16 @@ class S3Helper
   # List objects in the current bucket folder.
   def list_objects(bucket, prefix = "")
     response = @s3.list_objects_v2(bucket: bucket, prefix: prefix, delimiter: '/')
-    folders = response.common_prefixes.map { |prefix_obj| prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/' }
-    files = response.contents.map { |obj| obj.key.gsub(prefix, "") }
-    files.reject! { |f| f.include?("/") && f != prefix }
 
-    folders + files
+    # Collect folders and files with timestamps
+    folders = response.common_prefixes.map { |prefix_obj| { name: prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/', last_modified: nil } }
+    files = response.contents.map { |obj| { name: obj.key.gsub(prefix, ""), last_modified: obj.last_modified } }
+
+    # Reject any items with deeper paths (for current prefix level only)
+    files.reject! { |f| f[:name].include?("/") && f[:name] != prefix }
+
+    # Combine folders and files, and sort by last modified (folders first, then files sorted by date descending)
+    (folders + files).sort_by { |item| [item[:last_modified] ? 1 : 0, item[:last_modified] || Time.at(0)] }.reverse
   end
 
   # Download a file and confirm to the user.
@@ -209,7 +214,7 @@ class S3Helper
       when /^[0-9]+$/
         index = input.to_i
         if index >= 0 && index < items.size
-          selected = items[index]
+          selected = items[index][:name]
           new_path = "#{path}#{selected}".chomp('/')
           if selected.end_with?("/") # Folder
             history.push(path)

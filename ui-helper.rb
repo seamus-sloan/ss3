@@ -101,7 +101,12 @@ class UiHelper
     # Display bucket path, contents, and pagination info
     @window.setpos(0, 0)
     @window.addstr("Current Bucket: #{bucket} /#{prefix} (Page #{page + 1} of #{page_count})\nContents:\n")
-    items[start_index...end_index].each_with_index { |item, index| @window.addstr("[#{start_index + index}] #{item}\n") }
+
+    # Display items with timestamps
+    items[start_index...end_index].each_with_index do |item, index|
+      timestamp = item[:last_modified] ? item[:last_modified].strftime("%Y-%m-%d %H:%M:%S") : ""
+      @window.addstr("#{"[#{start_index + index}]".ljust(6)} #{timestamp.ljust(15)} #{item[:name].ljust(30)}\n")
+    end
 
     # Display page navigation prompts
     @window.addstr("\n")
