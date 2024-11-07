@@ -28,3 +28,6 @@ Once connected to a bucket, use the `[0 - 9]` keys to make selections on items w
 If the selected item is a folder, `ss3` will navigate you inside of that folder. If the selected item is a file, `ss3` will prompt you to download the file.
 
 While traversing through the bucket, you can easily go back (`[B]`) or enter a new bucket name (`[N]`) to switch to a different bucket.
+
+## Homebrew Formula
+Check out the homebrew formula in [my other repository](https://github.com/seamus-sloan/homebrew-tools) for other tools.
