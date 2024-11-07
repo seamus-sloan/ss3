@@ -5,6 +5,7 @@ lib_dir = ENV["AWS_S3_BUCKET_TOOL_LIB"] || File.expand_path("../", __FILE__)
 require_relative "#{lib_dir}/ui-helper"
 require_relative "#{lib_dir}/s3-helper"
 
+require 'bundler/setup'
 require 'aws-sdk-s3'
 require 'curses'
 
