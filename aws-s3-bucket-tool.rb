@@ -14,23 +14,17 @@ def main(s3)
   begin
     window = Curses.stdscr
     window.clear
-    ui = UI.new(window, PAGE_SIZE)
-    browser = S3Browser.new(s3, ui, PAGE_SIZE)
+    ui = UiHelper.new(window, PAGE_SIZE)
+    browser = S3Helper.new(s3, ui, PAGE_SIZE)
 
-    # Loop to prompt for a valid bucket name until successful
+    # Initial loop to select a bucket
+    bucket = browser.select_bucket
+
+    # Proceed to navigate within the valid bucket
     loop do
-      ui.clear_error_message
-      bucket = ARGV[0] || ui.prompt_user("Enter the S3 bucket name: ").strip
-      next if bucket.empty?
-
-      # Check if the bucket is accessible using connect_to_bucket
-      if browser.connect_to_bucket(bucket)
-        # Proceed if connection is successful
-        result = browser.navigate_bucket(bucket)
-        break unless result == :restart
-      else
-        ARGV[0] = nil # Reset argument to force prompt if the initial bucket name is invalid
-      end
+      result = browser.navigate_bucket(bucket)
+      break unless result == :restart # Restart bucket selection if :restart is returned
+      bucket = select_bucket(s3, ui, browser) # Select a new bucket if user chooses to restart
     end
 
   rescue Aws::Sigv4::Errors::MissingCredentialsError
