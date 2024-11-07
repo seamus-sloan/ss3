@@ -5,8 +5,10 @@
 ## Installation
 
 ```sh
-brew install awscli
 brew install seamus-sloan/tools/ss3
+
+# You may need this if not installed already...
+brew install awscli
 ```
 
 If you'd prefer to not use homebrew, making the script run through an alias (`ss3`) in your terminal profile is preferred. Ensure that the helper files remain adjacent to the main `aws-s3-bucket-tool` script.
