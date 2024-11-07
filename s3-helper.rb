@@ -32,7 +32,7 @@ class S3Helper
       selected_region = regions[index]
       ENV['AWS_REGION'] = selected_region # Set the environment variable for the region
       @s3 = Aws::S3::Client.new(region: selected_region) # Reinitialize client with new region
-      @ui.display_info("Switched to region '#{selected_region}'. Press any key to continue.")
+      @ui.display_info("Switched to region '#{selected_region}'.")
     else
       @ui.display_info("Invalid region selection. Please try again.")
     end
@@ -110,7 +110,6 @@ class S3Helper
         next
       else
         return input if connect_to_bucket(input) # Success, return bucket name
-        @ui.display_info("Invalid or inaccessible bucket. Please try again or adjust profile.")
       end
     end
   end
