@@ -1,7 +1,10 @@
 #!/usr/bin/env ruby
 
-require_relative "ui-helper"
-require_relative "s3-helper"
+lib_dir = ENV["AWS_S3_BUCKET_TOOL_LIB"] || File.expand_path("../", __FILE__)
+
+require_relative "#{lib_dir}/ui-helper"
+require_relative "#{lib_dir}/s3-helper"
+
 require 'aws-sdk-s3'
 require 'curses'
 
@@ -24,7 +27,7 @@ def main(s3)
     loop do
       result = browser.navigate_bucket(bucket)
       break unless result == :restart # Restart bucket selection if :restart is returned
-      bucket = select_bucket(s3, ui, browser) # Select a new bucket if user chooses to restart
+      bucket = browser.select_bucket # Select a new bucket if user chooses to restart
     end
 
   rescue Aws::Sigv4::Errors::MissingCredentialsError
