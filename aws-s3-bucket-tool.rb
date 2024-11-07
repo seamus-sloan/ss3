@@ -18,7 +18,7 @@ def main(s3)
     browser = S3Helper.new(s3, ui, PAGE_SIZE)
 
     # Initial loop to select a bucket
-    bucket = browser.select_bucket
+    bucket = ARGV[0] || browser.select_bucket
 
     # Proceed to navigate within the valid bucket
     loop do
@@ -28,9 +28,9 @@ def main(s3)
     end
 
   rescue Aws::Sigv4::Errors::MissingCredentialsError
-    ui.display_error("AWS credentials not found. Please configure your AWS credentials.")
+    ui.display_info("AWS credentials not found. Please configure your AWS credentials. (Check your current config.)")
   rescue Aws::Errors::ServiceError => e
-    ui.display_error("An error occurred with AWS: #{e.message}")
+    ui.display_info("An error occurred with AWS: #{e.message} | (Check your spelling and your current config.)")
   ensure
     Curses.close_screen
   end
