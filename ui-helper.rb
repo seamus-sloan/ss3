@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-class UI
+class UiHelper
   def initialize(window, page_size)
     @window = window
     @page_size = page_size
@@ -21,7 +21,7 @@ class UI
   end
 
   # Display an error message above the input line.
-  def display_error(message)
+  def display_info(message)
     @window.setpos(Curses.lines - 5, 0)
     @window.addstr(message.ljust(Curses.cols))
     @window.addstr("Press any key to continue.")
@@ -38,9 +38,57 @@ class UI
     @window.refresh
   end
 
-  # Clears the error message, continue text, and input lines.
-  def clear_error_message
+  # Clears the error message (5), continue text (4), and input lines (3).
+  def clear_info
     clear_lines(Curses.lines - 5 .. Curses.lines - 3)
+  end
+
+  # Display the initial prompt for selecting a bucket
+  def display_bucket_prompt
+    @window.clear
+    @window.setpos(Curses.lines - 4, 0)
+    @window.addstr("Please enter a bucket name to proceed.")
+    @window.setpos(Curses.lines - 1, 0)
+    @window.attron(Curses::A_REVERSE) do
+      @window.addstr("[P]: Adjust Profile [R]: Adjust Region [N]: Enter Bucket Name [Q]: Quit")
+    end
+    @window.refresh
+  end
+
+  # Display available profiles for user selection
+  def display_profile_prompt(profiles)
+    @window.clear
+    @window.setpos(0, 0)
+    @window.addstr("Available Profiles:\n\n")
+    profiles.each_with_index do |profile, index|
+      @window.addstr("[#{index}] #{profile}\n")
+    end
+    @window.addstr("\nSelect a profile by its number or press 'Q' to cancel.\n")
+
+    # Add the bottom menu bar
+    @window.setpos(Curses.lines - 1, 0)
+    @window.attron(Curses::A_REVERSE) do
+      @window.addstr("[Q] Cancel | [0-9] Select profile".ljust(Curses.cols))
+    end
+    @window.refresh
+  end
+
+  # Display available regions for user selection
+  def display_region_prompt(regions)
+    @window.clear
+    @window.setpos(0, 0)
+    @window.addstr("Available Regions:\n\n")
+    regions.each_with_index do |region, index|
+      @window.addstr("[#{index}] #{region}\n")
+    end
+    @window.addstr("\nSelect a region by its number or press 'q' to cancel.\n")
+
+    # Add the bottom menu bar
+    @window.setpos(Curses.lines - 1, 0)
+    @window.attron(Curses::A_REVERSE) do
+      @window.addstr("[Q] Cancel | [0-9] Select region".ljust(Curses.cols))
+    end
+    @window.refresh
   end
 
   # Render UI with pagination.

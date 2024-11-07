@@ -14,32 +14,23 @@ def main(s3)
   begin
     window = Curses.stdscr
     window.clear
-    ui = UI.new(window, PAGE_SIZE)
-    browser = S3Browser.new(s3, ui, PAGE_SIZE)
+    ui = UiHelper.new(window, PAGE_SIZE)
+    browser = S3Helper.new(s3, ui, PAGE_SIZE)
 
-    # Prompt for a valid bucket name until one is provided
+    # Initial loop to select a bucket
+    bucket = ARGV[0] || browser.select_bucket
+
+    # Proceed to navigate within the valid bucket
     loop do
-      ui.clear_error_message
-      bucket = ui.prompt_user("Enter the S3 bucket name: ").strip
-      next if bucket.empty? # Retry if input is blank
-
-      # Check if the bucket is valid by attempting to list objects
-      items = browser.list_objects(bucket)
-
-      # If there are items in the bucket, continue into normal navigation.
-      if items
-        result = browser.navigate_bucket(bucket)
-
-        # When trying to use a new bucket from navigate_bucket, restart
-        # the process to break out of both loops & reenter the bucket name.
-        break unless result == :restart
-      end
+      result = browser.navigate_bucket(bucket)
+      break unless result == :restart # Restart bucket selection if :restart is returned
+      bucket = select_bucket(s3, ui, browser) # Select a new bucket if user chooses to restart
     end
 
   rescue Aws::Sigv4::Errors::MissingCredentialsError
-    ui.display_error("AWS credentials not found. Please configure your AWS credentials.")
+    ui.display_info("AWS credentials not found. Please configure your AWS credentials. (Check your current config.)")
   rescue Aws::Errors::ServiceError => e
-    ui.display_error("An error occurred with AWS: #{e.message}")
+    ui.display_info("An error occurred with AWS: #{e.message} | (Check your spelling and your current config.)")
   ensure
     Curses.close_screen
   end
