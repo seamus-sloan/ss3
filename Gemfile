@@ -9,3 +9,4 @@ gem 'nokogiri', '~> 1.11'
 
 # other
 gem 'curses', '~> 1.2'
+gem 'cli-ui'
