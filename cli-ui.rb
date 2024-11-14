@@ -108,6 +108,8 @@ class UINavigator
   def start
     loop do
       CLI::UI::Frame.open("Main Menu") do
+        puts @s3_navigator.current_profile
+        puts @s3_navigator.current_region
         CLI::UI::Prompt.ask("SS3 Main Menu Option: ") do |handler|
           main_menu_options.each do |option|
             handler.option(option[:name]) { option[:action].call }
@@ -119,8 +121,11 @@ class UINavigator
 
   def main_menu_options
     options = []
-    options << {name: "Change AWS Region", action: -> {change_aws_region}}
-    options << {name: "Change AWS Profile", action: -> {change_aws_profile}}
+    current_region = @s3_navigator.current_region.empty? ? "NOT SET" : @s3_navigator.current_region
+    current_profile = @s3_navigator.current_profile.empty? ? "NOT SET" : @s3_navigator.current_profile
+
+    options << {name: "Change AWS Region (Current: #{current_region})", action: -> {change_aws_region}}
+    options << {name: "Change AWS Profile (Current: #{current_profile})", action: -> {change_aws_profile}}
 
     if @s3_navigator.bucket_name.nil?
       options << {name: "Enter Bucket Name", action: -> { enter_bucket_name }}
@@ -132,9 +137,22 @@ class UINavigator
     options << {name: "Quit", action: -> { exit }}
   end
 
+  def change_aws_region
+    regions = @s3_navigator.regions
+    CLI::UI::Prompt.ask("Select a new profile: (current: #{@s3_navigator.current_region})") do |handler|
+      regions.each do |region|
+        handler.option(region) { @s3_navigator.change_region(region)}
+      end
+    end
+  end
+
   def change_aws_profile
     profiles = @s3_navigator.profiles
-    puts @s3_navigator.current_profile
+    CLI::UI::Prompt.ask("Select a new profile: (current: #{@s3_navigator.current_profile})") do |handler|
+      profiles.each do |profile|
+        handler.option(profile) { @s3_navigator.change_profile(profile)}
+      end
+    end
   end
 
   def enter_bucket_name
@@ -177,14 +195,6 @@ class UINavigator
 
     options
   end
-
-
-
-  def change_region
-
-  end
-
-
 end
 
 
