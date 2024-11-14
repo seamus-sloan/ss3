@@ -3,9 +3,59 @@ require 'cli/ui'
 
 class S3Navigator
   def initialize(bucket_name)
-    @bucket_name = bucket_name
+    @bucket_name = bucket_name || nil
     @s3_client = Aws::S3::Client.new
     @current_path = [""]
+  end
+
+  def current_region
+    return ENV['AWS_REGION'] || ""
+  end
+
+  def regions
+    partitions = %w[aws aws-us-gov]
+    partitions.flat_map do |partition|
+      Aws.partition(partition).regions.map(&:name)
+    end.uniq
+  end
+
+  def change_region(region)
+    ENV['AWS_REGION'] = region
+    @s3_client = Aws::S3::Client.new(region:)
+  end
+
+  def current_profile
+    return ENV['AWS_PROFILE'] || ""
+  end
+
+  def profiles
+    profile_names = []
+
+    # Gather the credentials from ./aws/credentials or similar
+    credentials_path = File.expand_path(Aws::SharedCredentials.new.path)
+    return profile_names unless File.exist?(credentials_path)
+
+    # Parse profiles by matching for [profile_name] in the file
+    File.foreach(credentials_path) do |line|
+      if line.match(/^\[(.+?)\]/)
+        profile_names << Regexp.last_match(1)
+      end
+    end
+
+    profile_names
+  end
+
+  def change_profile(profile)
+    ENV['AWS_PROFILE'] = profile
+    @s3_client = Aws::S3::Client.new
+  end
+
+  def bucket_name
+    @bucket_name
+  end
+
+  def change_bucket_name(name)
+    @bucket_name = name
   end
 
   def list_items
@@ -41,6 +91,15 @@ class S3Navigator
 
 end
 
+
+
+
+
+
+
+
+
+
 class UINavigator
   def initialize(s3_navigator)
     @s3_navigator = s3_navigator
@@ -48,18 +107,59 @@ class UINavigator
 
   def start
     loop do
-      display_options = options
-      CLI::UI::Frame.open("") do
-        CLI::UI::Prompt.ask("Select an option: ") do |handler|
-          display_options.each do |display_option|
-            handler.option(display_option[:name]) { display_option[:action].call }
+      CLI::UI::Frame.open("Main Menu") do
+        CLI::UI::Prompt.ask("SS3 Main Menu Option: ") do |handler|
+          main_menu_options.each do |option|
+            handler.option(option[:name]) { option[:action].call }
           end
         end
       end
     end
   end
 
-  def options
+  def main_menu_options
+    options = []
+    options << {name: "Change AWS Region", action: -> {change_aws_region}}
+    options << {name: "Change AWS Profile", action: -> {change_aws_profile}}
+
+    if @s3_navigator.bucket_name.nil?
+      options << {name: "Enter Bucket Name", action: -> { enter_bucket_name }}
+    else
+      options << {name: "Change Bucket Name", action: -> { update_bucket_name(@s3_navigator.bucket_name) }}
+      options << {name: "Enter '#{@s3_navigator.bucket_name}'", action: -> { bucket_navigation }}
+    end
+
+    options << {name: "Quit", action: -> { exit }}
+  end
+
+  def change_aws_profile
+    profiles = @s3_navigator.profiles
+    puts @s3_navigator.current_profile
+  end
+
+  def enter_bucket_name
+    bucket_name = CLI::UI::Prompt.ask("Enter the name of the bucket: ")
+    @s3_navigator.change_bucket_name(bucket_name)
+  end
+
+  def update_bucket_name(bucket_name)
+    updated_name = CLI::UI::Prompt.ask("Enter a new name bucket name: ", default: bucket_name)
+    @s3_navigator.change_bucket_name(updated_name)
+  end
+
+  def bucket_navigation
+    loop do
+      # display_options = bucket_options
+      CLI::UI::Prompt.ask("Select an option: ") do |handler|
+        # display_options.each do |option|
+        bucket_options.each do |option|
+          handler.option(option[:name]) { option[:action].call }
+        end
+      end
+    end
+  end
+
+  def bucket_options
     items = @s3_navigator.list_items
     options = []
 
@@ -78,29 +178,23 @@ class UINavigator
     options
   end
 
-    # Display options for current directory
-    def display_options
-      items = @s3_navigator.list_objects
-      options = []
 
-      # Only add 'Go Back' if not at the root
-      options << { name: 'Go Back', action: -> { @s3_navigator.go_back } } unless @s3_navigator.at_root?
 
-      # Add folders and files as options
-      items[:folders].each do |folder|
-        options << { name: "📁 #{folder}", action: -> { @s3_navigator.enter_folder(folder) } }
-      end
+  def change_region
 
-      items[:files].each do |file|
-        options << { name: "📄 #{file}", action: -> { file_options(file) } }
-      end
+  end
 
-      # Ensure there's always something to display
-      options = [{ name: 'No items available', action: -> {} }] if options.empty?
-      options
-    end
+
 end
 
-s3_navigator = S3Navigator.new("aerodome-drone-controller-logs")
+
+
+
+
+
+
+
+
+s3_navigator = S3Navigator.new(ARGV[0])
 ui_navigator = UINavigator.new(s3_navigator)
 ui_navigator.start
