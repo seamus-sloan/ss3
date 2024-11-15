@@ -114,18 +114,25 @@ class UINavigator
         exit 0
       when :bucket_navigation
         bucket_navigation
+        # After returning from bucket_navigation, loop back to show_main_menu
       end
     end
   end
 
   def show_main_menu
+    action_result = nil  # Initialize the action result variable
+
     CLI::UI::Frame.open("Main Menu") do
       CLI::UI::Prompt.ask("SS3 Main Menu Option: ") do |handler|
         main_menu_options.each do |option|
-          handler.option(option[:name]) { return option[:action].call }
+          handler.option(option[:name]) do
+            action_result = option[:action].call  # Capture the action's result
+          end
         end
       end
     end
+
+    action_result  # Return the action result
   end
 
   def main_menu_options
@@ -150,9 +157,9 @@ class UINavigator
 
   def change_aws_region
     regions = @s3_navigator.regions
-    CLI::UI::Prompt.ask("Select a new profile: (current: #{@s3_navigator.current_region})") do |handler|
+    CLI::UI::Prompt.ask("Select a new region: (current: #{@s3_navigator.current_region})") do |handler|
       regions.each do |region|
-        handler.option(region) { @s3_navigator.change_region(region)}
+        handler.option(region) { @s3_navigator.change_region(region) }
       end
     end
   end
@@ -161,7 +168,7 @@ class UINavigator
     profiles = @s3_navigator.profiles
     CLI::UI::Prompt.ask("Select a new profile: (current: #{@s3_navigator.current_profile})") do |handler|
       profiles.each do |profile|
-        handler.option(profile) { @s3_navigator.change_profile(profile)}
+        handler.option(profile) { @s3_navigator.change_profile(profile) }
       end
     end
   end
@@ -172,24 +179,37 @@ class UINavigator
   end
 
   def update_bucket_name(bucket_name)
-    updated_name = CLI::UI::Prompt.ask("Enter a new name bucket name: ", default: bucket_name)
+    updated_name = CLI::UI::Prompt.ask("Enter a new bucket name: ", default: bucket_name)
     @s3_navigator.change_bucket_name(updated_name)
   end
 
   def bucket_navigation
-    loop do
-      result = show_bucket_menu
-      break if result == :back_to_main_menu
-    end
-  end
+    CLI::UI::Frame.open("#{@s3_navigator.bucket_name}/#{@s3_navigator.current_path}") do
+      loop do
+        action_result = nil  # Initialize the action result variable
 
-  def show_bucket_menu
-    CLI::UI::Frame.open("Bucket Navigation") do
-      CLI::UI::Frame.open("#{@s3_navigator.bucket_name}/#{@s3_navigator.current_path}") do
         CLI::UI::Prompt.ask("Select an option: ") do |handler|
           bucket_options.each do |option|
-            handler.option(option[:name]) { return option[:action].call }
+            handler.option(option[:name]) do
+              action_result = option[:action].call  # Capture the action's result
+            end
           end
+        end
+
+        case action_result
+        when :enter_folder
+          # Recursively call bucket_navigation to enter the folder
+          bucket_navigation
+        when :go_back
+          # Go back to the previous folder (frame will close automatically)
+          @s3_navigator.go_back
+          return
+        when :back_to_main_menu
+          # Return to main menu (frame will close)
+          return :back_to_main_menu
+        else
+          # Continue the loop for other actions
+          # You can add any additional logic here if needed
         end
       end
     end
@@ -200,15 +220,27 @@ class UINavigator
     options = []
 
     unless @s3_navigator.is_at_root
-      options << { name: "Go Back", action: -> { @s3_navigator.go_back; nil } }
+      options << { name: "Go Back", action: -> { :go_back } }
     end
 
     items[:folders].each do |folder|
-      options << { name: "📁 #{folder[:name]}", action: -> { @s3_navigator.enter_folder(folder[:name]); nil } }
+      options << {
+        name: "📁 #{folder[:name]}",
+        action: -> {
+          @s3_navigator.enter_folder(folder[:name])
+          :enter_folder
+        }
+      }
     end
 
     items[:files].each do |file|
-      options << { name: "📄 #{file[:name]}", action: -> { @s3_navigator.download_file(file); nil } }
+      options << {
+        name: "📄 #{file[:name]}",
+        action: -> {
+          @s3_navigator.download_file(file)
+          nil  # Return nil to continue the loop
+        }
+      }
     end
 
     options << { name: "❌ Back to Main Menu", action: -> { :back_to_main_menu } }
@@ -216,7 +248,6 @@ class UINavigator
     options
   end
 end
-
 
 
 
