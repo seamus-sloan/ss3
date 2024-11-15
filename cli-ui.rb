@@ -88,16 +88,32 @@ class S3Navigator
     prefix = @current_path.last
     response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: prefix, delimiter: '/')
 
-    # Collect folders and files with timestamps
-    folders = response.common_prefixes.map { |prefix_obj| { name: prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/', last_modified: nil } }
-    files = response.contents.map { |obj| { name: obj.key.gsub(prefix, ""), last_modified: obj.last_modified } }
+    # Collect folders with their last modified dates
+    folders = response.common_prefixes.map do |prefix_obj|
+      folder_name = prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/'
+      folder_prefix = prefix_obj.prefix
 
-    # Reject any items with deeper paths (for current prefix level only)
+      # Fetch objects within the folder to determine last modified date
+      folder_response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: folder_prefix)
+      folder_last_modified = folder_response.contents.map(&:last_modified).max
+
+      { name: folder_name, last_modified: folder_last_modified }
+    end
+
+    # Collect files with their last modified dates
+    files = response.contents.map do |obj|
+      file_name = obj.key.gsub(prefix, "")
+      { name: file_name, last_modified: obj.last_modified }
+    end
+
+    # Reject any deeper path items for the current level
     files.reject! { |f| f[:name].include?("/") && f[:name] != prefix }
 
-    files.sort_by { |file| [file[:last_modified] ? 1 : 0, file[:last_modified] || Time.at(0)] }.reverse
+    # Combine and sort folders and files by last modified date
+    items = folders + files
+    items.sort_by! { |item| item[:last_modified] || Time.at(0) }.reverse!
 
-    {folders: folders, files: files}
+    items
   end
 
   # Returns true or false if the current path is the root of the bucket.
@@ -278,24 +294,27 @@ class UINavigator
       options << { name: "Go Back", action: -> { :go_back } }
     end
 
-    items[:folders].each do |folder|
-      options << {
-        name: "📁 #{folder[:name]}",
-        action: -> {
-          @s3_navigator.enter_folder(folder[:name])
+    items.each do |item|
+      last_modified_str = item[:last_modified]&.strftime('%Y-%m-%d %H:%M:%S') || 'No Date'
+      display_name = if item[:name].end_with?('/')
+        "📁 #{last_modified_str} \t-\t #{item[:name]}"
+      else
+        "📄 #{last_modified_str} \t-\t #{item[:name]}"
+      end
+
+      action = if item[:name].end_with?('/')
+        -> {
+          @s3_navigator.enter_folder(item[:name])
           :enter_folder
         }
-      }
-    end
-
-    items[:files].each do |file|
-      options << {
-        name: "📄 #{file[:name]}",
-        action: -> {
-          @s3_navigator.download_file(file)
-          nil  # Return nil to continue the loop
+      else
+        -> {
+          @s3_navigator.download_file(item)
+          nil  # Continue the loop after downloading
         }
-      }
+      end
+
+      options << { name: display_name, action: action }
     end
 
     options << { name: "❌ Back to Main Menu", action: -> { :back_to_main_menu } }
