@@ -110,6 +110,12 @@ class S3Navigator
     items
   end
 
+  # Downloads the selected file to the current directory.
+  def download_file(download_name, file_name)
+    key = File.join(@current_path.last, file_name)
+    @s3_client.get_object(response_target: download_name, bucket: @bucket_name, key: key)
+  end
+
   # Returns true or false if the current path is the root of the bucket.
   def is_at_root
     return @current_path.count == 1

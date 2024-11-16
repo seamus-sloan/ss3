@@ -174,7 +174,8 @@ class UINavigator
         case action_result
         when :enter_folder
           page = 1  # Reset page when entering a new folder
-          bucket_navigation
+          result = bucket_navigation  # Capture the return value
+          return result if result == :back_to_main_menu  # Propagate if necessary
         when :go_back
           @s3_navigator.go_back
           return
@@ -194,11 +195,12 @@ class UINavigator
             puts "You are on the first page."
           end
         else
-          # Continue the loop for other actions
+          # Continue the loop here...
         end
       end
     end
   end
+
 
 
   # Generates the list of options for navigating within a bucket.
@@ -225,7 +227,7 @@ class UINavigator
         }
       else
         -> {
-          @s3_navigator.download_file(item)
+          download_item(item)
           nil  # Continue the loop after downloading
         }
       end
@@ -242,5 +244,14 @@ class UINavigator
     options << { name: "❌ Back to Main Menu", action: -> { :back_to_main_menu } }
 
     options
+  end
+
+  # Display options for downloading a file
+  def download_item(item)
+    CLI::UI::Frame.open("Download #{item[:name]}", color: :magenta) do
+      puts "This item will be downloaded to the current directory."
+      name = CLI::UI::Prompt.ask("Enter a new name for the file: ", default: item[:name])
+      @s3_navigator.download_file(name, item[:name])
+    end
   end
 end
