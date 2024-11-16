@@ -1,19 +1,15 @@
 #!/usr/bin/env ruby
 require 'bundler/setup'
 
-# Determine the base directory of the script
-base_dir = File.expand_path('..', __FILE__)
+# When installed with homebrew, the helper files are installed
+# in lib/ which requires the below line in order to function.
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
+require 's3-navigator'
+require 'ui-navigator'
 
-# Attempt to load class files from the same directory
-begin
-  require_relative 's3-navigator'
-  require_relative 'ui-navigator'
-rescue LoadError
-  # If not found, attempt to load from the 'lib' directory (e.g., when installed via Homebrew)
-  $LOAD_PATH.unshift(File.join(base_dir, 'lib'))
-  require 's3-navigator'
-  require 'ui-navigator'
-end
+# Replace the above with the below lines for local development.
+# require_relative 's3-navigator'
+# require_relative 'ui-navigator'
 
 if ARGV.any? { |arg| ["--help", "-h"].include?(arg) }
   ui_navigator = UINavigator.new(nil)
