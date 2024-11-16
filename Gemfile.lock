@@ -19,7 +19,6 @@ GEM
       aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.2.0)
     cli-ui (2.2.3)
-    curses (1.4.7)
     jmespath (1.6.2)
     logger (1.6.1)
     mini_portile2 (2.8.7)
@@ -39,7 +38,6 @@ DEPENDENCIES
   aws-sdk-s3 (~> 1.0)
   base64 (~> 0.1)
   cli-ui
-  curses (~> 1.2)
   logger (~> 1.6)
   nokogiri (~> 1.11)
   ostruct (~> 0.3)
