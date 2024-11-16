@@ -1,13 +1,17 @@
 #!/usr/bin/env ruby
-require 'bundler/setup'
+
+require_relative 'bundle/bundler/setup'
 
 # When installed with homebrew, the helper files are installed
 # in lib/ which requires the below line in order to function.
+# The file path below will be replaced with the actual library
+# path by the homebrew install formula.
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 require 's3-navigator'
 require 'ui-navigator'
 
 # Replace the above with the below lines for local development.
+# require_relative 'bundle/bundler/setup'
 # require_relative 's3-navigator'
 # require_relative 'ui-navigator'
 
