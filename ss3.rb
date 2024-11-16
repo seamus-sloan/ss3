@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require_relative "s3-navigator"
 require_relative "ui-navigator"
 
