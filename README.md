@@ -19,15 +19,21 @@ If you'd prefer to not use homebrew, making the script run through an alias (`ss
 ss3 [optional_bucket_name]
 ```
 
-If no bucket name is entered, the user will be able to enter a bucket name and attempt to connect to it.
+To navigate through the menus, use the arrow keys to move through options and press `ENTER` to select an option. Alternatively, you can use `[0-9]` to select options but not with double digit options.
 
-If there are any errors while attempting to connect to a bucket, you can press `P` or `R` at this menu to switch your AWS Profile or AWS Region respectively and try again.
+Upon entering the main menu, enter a bucket name (if not already provided as an argument) and double check your profile/region at the main menu. Once everything is all set, enter the bucket to navigate through bucket contents.
 
-Once connected to a bucket, use the `[0 - 9]` keys to make selections on items within the bucket.
+While navigating the bucket, selecting a folder will allow you to enter that folder and view its contents. When selecting a file, the user will be able to download the file with a new name (if desired).
 
-If the selected item is a folder, `ss3` will navigate you inside of that folder. If the selected item is a file, `ss3` will prompt you to download the file.
-
-While traversing through the bucket, you can easily go back (`[B]`) or enter a new bucket name (`[N]`) to switch to a different bucket.
+This program utilizes Shopify's [cli-ui](https://github.com/Shopify/cli-ui) gem. A handy built-in feature of this gem is filtering on options. Whenever presented with options, try pressing `F` and typing in an option and the list will be filtered for you!
 
 ## Homebrew Formula
+
 Check out the homebrew formula in [my other repository](https://github.com/seamus-sloan/homebrew-tools) for other tools.
+
+## Future Improvements
+
+- [ ] Ensure downloaded files have the correct extension
+- [ ] Allow for downloading entire folders
+- [ ] Allow for moving files around within a bucket
+- [ ] Add additional options for configuring new profiles
