@@ -113,15 +113,15 @@ class UINavigator
     # Profiles will return :error or :success as [0]
     profiles = @s3_navigator.profiles
 
-    if profiles[0] == :success
+    if profiles[:status] == :success
       CLI::UI::Prompt.ask("Select a new profile: (Current: #{@s3_navigator.current_profile})") do |handler|
-        profiles.each do |profile|
+        profiles[:data].each do |profile|
           handler.option(profile) { @s3_navigator.change_profile(profile) }
         end
       end
     else
-      CLI::UI::Frame.open("ERROR: #{profiles[1]}", color: :red) do
-        CLI::UI::Prompt.ask(profiles[1]) do |handler|
+      CLI::UI::Frame.open("Error Loading Profiles", color: :red) do
+        CLI::UI::Prompt.ask(profiles[:message]) do |handler|
           handler.option("Back to Main Menu") { nil } # Return nil to indicate that we need to display the main menu again.
           handler.option("Exit") { :exit} # Return :exit to the main function to indicate that the program should exit.
         end

@@ -50,9 +50,9 @@ class S3Navigator
     # Gather the credentials from ./aws/credentials or similar
     begin
       credentials_path = File.expand_path(Aws::SharedCredentials.new.path)
-      return [:error, "No credential path found. Ensure aws cli is installed & run `aws configure`."] unless File.exist?(credentials_path)
+      return {status: :error, message: "No credential path found. Ensure aws cli is installed & run `aws configure`."} unless File.exist?(credentials_path)
     rescue Aws::Errors::NoSuchProfileError
-      return [:error, "No default profile set. Please run `aws configure` outside of this script."]
+      return {status: :error, message: "No default profile set. Please run `aws configure` outside of this script."}
     end
     # Parse profiles by matching for [profile_name] in the file
     File.foreach(credentials_path) do |line|
@@ -61,7 +61,7 @@ class S3Navigator
       end
     end
 
-    [:success, profile_names]
+    return {status: :success, data: profile_names}
   end
 
   # Updates the current profile with the provided one.
