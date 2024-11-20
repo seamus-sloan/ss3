@@ -82,7 +82,7 @@ class UINavigator
     current_profile = @s3_navigator.current_profile.empty? ? "NOT SET" : @s3_navigator.current_profile
 
     options << { name: "🌎 Change AWS Region (Current: #{current_region})", action: -> { change_aws_region; nil } }
-    options << { name: "👤 Change AWS Profile (Current: #{current_profile})", action: -> { change_aws_profile; nil } }
+    options << { name: "👤 Change AWS Profile (Current: #{current_profile})", action: -> { change_aws_profile } }
 
     if @s3_navigator.bucket_name.nil?
       options << { name: "🪣 Enter Bucket Name", action: -> { enter_bucket_name; nil } }
@@ -110,10 +110,21 @@ class UINavigator
   # Prompts the user to select a new AWS profile from the available profiles.
   # Updates the S3Navigator with the selected profile.
   def change_aws_profile
+    # Profiles will return :error or :success as [0]
     profiles = @s3_navigator.profiles
-    CLI::UI::Prompt.ask("Select a new profile: (Current: #{@s3_navigator.current_profile})") do |handler|
-      profiles.each do |profile|
-        handler.option(profile) { @s3_navigator.change_profile(profile) }
+
+    if profiles[0] == :success
+      CLI::UI::Prompt.ask("Select a new profile: (Current: #{@s3_navigator.current_profile})") do |handler|
+        profiles.each do |profile|
+          handler.option(profile) { @s3_navigator.change_profile(profile) }
+        end
+      end
+    else
+      CLI::UI::Frame.open("ERROR: #{profiles[1]}", color: :red) do
+        CLI::UI::Prompt.ask(profiles[1]) do |handler|
+          handler.option("Back to Main Menu") { nil } # Return nil to indicate that we need to display the main menu again.
+          handler.option("Exit") { :exit} # Return :exit to the main function to indicate that the program should exit.
+        end
       end
     end
   end
@@ -141,32 +152,33 @@ class UINavigator
 
     CLI::UI::Frame.open("#{@s3_navigator.bucket_name}/#{@s3_navigator.current_path}") do
       loop do
-        action_result = nil  # Initialize the action result variable
+        action_result = nil  # Used to determine next step within the loop
+        result = nil # The result from attempting to list items from S3
+        
+        # Show a spinner while items are loading.
+        CLI::UI::Spinner.spin("Loading items...") do |spinner|
+          result = @s3_navigator.list_items
+        end
 
-        # Add spinner while loading items
-        items = nil
-        begin
-          CLI::UI::Spinner.spin("Loading items...") do
-            items = @s3_navigator.list_items
-          end
-        rescue Aws::S3::Errors::ServiceError => e
-          puts CLI::UI.fmt("{{x}} Failed to load items: #{e.message}")
+        # If we get an error while fetching the items, display the error.
+        if result[:status] != :success
+          error_message = result[:message]
+          puts CLI::UI.fmt(
+            "{{red:Failed to load items.}}\n{{red:Error: #{error_message}}}\n\n{{red:Returning to main menu...}}"
+          )
           action_result = :back_to_main_menu
-        end
-
-        # Handle error case
-        if items.nil?
-          return :back_to_main_menu if action_result == :back_to_main_menu
-          next  # Skip to the next loop iteration
-        end
-
-        total_pages = (items.size / page_size.to_f).ceil
-        options = bucket_options(items, page_size: page_size, page: page)
-
-        CLI::UI::Prompt.ask("Select an option (Page #{page}/#{total_pages}): ") do |handler|
-          options.each do |option|
-            handler.option(option[:name]) do
-              action_result = option[:action].call  # Capture the action's result
+        
+          # If there's no error, display normal behavior
+        else
+          items = result[:data]  
+          total_pages = (items.size / page_size.to_f).ceil
+          options = bucket_options(items, page_size: page_size, page: page)
+  
+          CLI::UI::Prompt.ask("Select an option (Page #{page}/#{total_pages}): ") do |handler|
+            options.each do |option|
+              handler.option(option[:name]) do
+                action_result = option[:action].call  # Capture the action's result
+              end
             end
           end
         end

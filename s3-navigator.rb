@@ -9,7 +9,11 @@ class S3Navigator
   # @param bucket_name [String] Optional. The name of the bucket if already known at runtime.
   def initialize(bucket_name)
     @bucket_name = bucket_name || nil
-    @s3_client = Aws::S3::Client.new
+    if current_region.empty?
+      @s3_client = Aws::S3::Client.new(region: "us-east-1")
+    else
+      @s3_client = Aws::S3::Client.new
+    end
     @current_path = [""]
   end
 
@@ -44,9 +48,12 @@ class S3Navigator
     profile_names = []
 
     # Gather the credentials from ./aws/credentials or similar
-    credentials_path = File.expand_path(Aws::SharedCredentials.new.path)
-    return profile_names unless File.exist?(credentials_path)
-
+    begin
+      credentials_path = File.expand_path(Aws::SharedCredentials.new.path)
+      return [:error, "No credential path found. Ensure aws cli is installed & run `aws configure`."] unless File.exist?(credentials_path)
+    rescue Aws::Errors::NoSuchProfileError
+      return [:error, "No default profile set. Please run `aws configure` outside of this script."]
+    end
     # Parse profiles by matching for [profile_name] in the file
     File.foreach(credentials_path) do |line|
       if line.match(/^\[(.+?)\]/)
@@ -54,7 +61,7 @@ class S3Navigator
       end
     end
 
-    profile_names
+    [:success, profile_names]
   end
 
   # Updates the current profile with the provided one.
@@ -80,34 +87,47 @@ class S3Navigator
   # Returns a list of folders & files within the current folder of the bucket.
   def list_items
     prefix = @current_path.last
-    response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: prefix, delimiter: '/')
+    begin
+      response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: prefix, delimiter: '/')
+      
+      # Collect folders with their last modified dates
+      folders = response.common_prefixes.map do |prefix_obj|
+        folder_name = prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/'
+        folder_prefix = prefix_obj.prefix
 
-    # Collect folders with their last modified dates
-    folders = response.common_prefixes.map do |prefix_obj|
-      folder_name = prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/'
-      folder_prefix = prefix_obj.prefix
+        # Fetch objects within the folder to determine last modified date
+        folder_response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: folder_prefix)
+        folder_last_modified = folder_response.contents.map(&:last_modified).max
 
-      # Fetch objects within the folder to determine last modified date
-      folder_response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: folder_prefix)
-      folder_last_modified = folder_response.contents.map(&:last_modified).max
+        { name: folder_name, last_modified: folder_last_modified }
+      end
 
-      { name: folder_name, last_modified: folder_last_modified }
+      # Collect files with their last modified dates
+      files = response.contents.map do |obj|
+        file_name = obj.key.gsub(prefix, "")
+        { name: file_name, last_modified: obj.last_modified }
+      end
+
+      # Reject any deeper path items for the current level
+      files.reject! { |f| f[:name].include?("/") && f[:name] != prefix }
+
+      # Combine and sort folders and files by last modified date
+      items = folders + files
+      items.sort_by! { |item| item[:last_modified] || Time.at(0) }.reverse!
+
+      # Return success with the items
+      return { status: :success, data: items }
+    
+    rescue Aws::Errors::MissingCredentialsError => e
+      # Handle missing credentials error
+      return { status: :error, message: "Missing AWS credentials: #{e.message}" }
+    rescue Aws::S3::Errors::ServiceError => e
+      # Handle AWS S3 service errors
+      return { status: :error, message: "AWS S3 error: #{e.message}" }
+    rescue StandardError => e
+      # Handle any other exceptions
+      return { status: :error, message: "An unexpected error occurred: #{e.message}" }
     end
-
-    # Collect files with their last modified dates
-    files = response.contents.map do |obj|
-      file_name = obj.key.gsub(prefix, "")
-      { name: file_name, last_modified: obj.last_modified }
-    end
-
-    # Reject any deeper path items for the current level
-    files.reject! { |f| f[:name].include?("/") && f[:name] != prefix }
-
-    # Combine and sort folders and files by last modified date
-    items = folders + files
-    items.sort_by! { |item| item[:last_modified] || Time.at(0) }.reverse!
-
-    items
   end
 
   # Downloads the selected file to the current directory.
