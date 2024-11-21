@@ -1,0 +1,18 @@
+current directory: /Users/seamus.sloan/Repos/Personal/ss3/vendor/bundle/ruby/3.3.0/gems/racc-1.8.1/ext/racc/cparse
+/Users/seamus.sloan/.rbenv/versions/3.3.5/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/seamus.sloan/Repos/Personal/ss3/vendor/bundle/ruby/3.3.0/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20241120-40716-aoi0sl sitelibdir\=./.gem.20241120-40716-aoi0sl clean
+
+current directory: /Users/seamus.sloan/Repos/Personal/ss3/vendor/bundle/ruby/3.3.0/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20241120-40716-aoi0sl sitelibdir\=./.gem.20241120-40716-aoi0sl
+compiling cparse.c
+linking shared-object racc/cparse.bundle
+
+current directory: /Users/seamus.sloan/Repos/Personal/ss3/vendor/bundle/ruby/3.3.0/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20241120-40716-aoi0sl sitelibdir\=./.gem.20241120-40716-aoi0sl install
+/usr/bin/install -c -m 0755 cparse.bundle ./.gem.20241120-40716-aoi0sl/racc
+
+current directory: /Users/seamus.sloan/Repos/Personal/ss3/vendor/bundle/ruby/3.3.0/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20241120-40716-aoi0sl sitelibdir\=./.gem.20241120-40716-aoi0sl clean

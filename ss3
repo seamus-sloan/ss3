@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
 
-require_relative 'bundle/bundler/setup'
-require_relative 's3-navigator'
-require_relative 'ui-navigator'
+require 'bundler/setup'
+
+require File.expand_path('s3-navigator', __dir__)
+require File.expand_path('ui-navigator', __dir__)
 
 
 if ARGV.any? { |arg| ["--help", "-h"].include?(arg) }
