@@ -38,6 +38,12 @@ class UINavigator
     end
   end
 
+  def show_missing_region_error 
+    CLI::UI::Frame.open("AWS Config Error", color: :red) do
+      puts CLI::UI.fmt("{{red:Missing default region & profile. Please run 'aws configure' in your terminal to set up your default profile.}}")
+    end
+  end
+
   # Starts the main loop of the user interface, displaying the main menu and handling user input.
   # This method runs indefinitely until the user chooses to exit the application.
   def start

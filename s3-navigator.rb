@@ -9,17 +9,23 @@ class S3Navigator
   # @param bucket_name [String] Optional. The name of the bucket if already known at runtime.
   def initialize(bucket_name)
     @bucket_name = bucket_name || nil
-    if current_region.empty?
-      @s3_client = Aws::S3::Client.new(region: "us-east-1")
-    else
-      @s3_client = Aws::S3::Client.new
-    end
     @current_path = [""]
+    @status = :success
+
+    begin
+      @s3_client = Aws::S3::Client.new
+    rescue Aws::Errors::MissingRegionError => e
+      @status = :error
+    end
+  end
+
+  def status
+    return @status
   end
 
   # Returns the current ENV['AWS_REGION'] value or an empty string.
   def current_region
-    return ENV['AWS_REGION'] || ""
+    return @s3_client.config.region || ""
   end
 
   # Returns all available AWS regions.
@@ -34,13 +40,19 @@ class S3Navigator
   #
   # @param region [String] Name of the region
   def change_region(region)
-    ENV['AWS_REGION'] = region
     @s3_client = Aws::S3::Client.new(region:)
   end
 
   # Returns the current ENV['AWS_PROFILE'] value or an empty string.
   def current_profile
-    return ENV['AWS_PROFILE'] || ""
+    profile_name = ""
+    begin
+      credentials = @s3_client.config.credentials
+      profile_name = credentials.profile_name
+    rescue
+      # TODO: Investigate how to handle a case where credentials aren't set (i.e. no default)
+    end
+    profile_name
   end
 
   # Returns all available AWS profiles from '~/.aws/credentials'.
