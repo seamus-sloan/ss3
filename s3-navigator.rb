@@ -19,11 +19,12 @@ class S3Navigator
     end
   end
 
+  # Returns the current status. This is only used to identify whether initialization was successful.
   def status
     return @status
   end
 
-  # Returns the current ENV['AWS_REGION'] value or an empty string.
+  # Returns the current AWS region for the client as a string or an empty string.
   def current_region
     return @s3_client.config.region || ""
   end
@@ -43,14 +44,16 @@ class S3Navigator
     @s3_client = Aws::S3::Client.new(region:)
   end
 
-  # Returns the current ENV['AWS_PROFILE'] value or an empty string.
+  # Returns the current AWS client's profile as a string or an empty string.
   def current_profile
     profile_name = ""
     begin
       credentials = @s3_client.config.credentials
       profile_name = credentials.profile_name
     rescue
-      # TODO: Investigate how to handle a case where credentials aren't set (i.e. no default)
+      # TODO: Investigate how to handle a case where credentials aren't set (i.e. no default).
+      #       This shouldn't be possible now since the program exits early on initialize if there's
+      #       a failure, but keeping this comment here to come back to if necessary in the future.
     end
     profile_name
   end
@@ -59,14 +62,15 @@ class S3Navigator
   def profiles
     profile_names = []
 
-    # Gather the credentials from ./aws/credentials or similar
+    # Gather the credentials from ./aws/credentials or similar.
     begin
       credentials_path = File.expand_path(Aws::SharedCredentials.new.path)
       return {status: :error, message: "No credential path found. Ensure aws cli is installed & run `aws configure`."} unless File.exist?(credentials_path)
     rescue Aws::Errors::NoSuchProfileError
       return {status: :error, message: "No default profile set. Please run `aws configure` outside of this script."}
     end
-    # Parse profiles by matching for [profile_name] in the file
+
+    # Parse profiles by matching for [profile_name] in the file.
     File.foreach(credentials_path) do |line|
       if line.match(/^\[(.+?)\]/)
         profile_names << Regexp.last_match(1)
@@ -78,7 +82,7 @@ class S3Navigator
 
   # Updates the current profile with the provided one.
   #
-  # @param profile [String] Name of the profile
+  # @param profile [String] Name of the profile.
   def change_profile(profile)
     ENV['AWS_PROFILE'] = profile
     @s3_client = Aws::S3::Client.new
@@ -91,7 +95,7 @@ class S3Navigator
 
   # Updates the bucket name with the provided one.
   #
-  # @param name [String] Name of the bucket
+  # @param name [String] Name of the bucket.
   def change_bucket_name(name)
     @bucket_name = name
   end
@@ -102,42 +106,39 @@ class S3Navigator
     begin
       response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: prefix, delimiter: '/')
       
-      # Collect folders with their last modified dates
+      # Collect folders with their last modified dates.
       folders = response.common_prefixes.map do |prefix_obj|
         folder_name = prefix_obj.prefix.gsub(prefix, '').chomp('/') + '/'
         folder_prefix = prefix_obj.prefix
 
-        # Fetch objects within the folder to determine last modified date
+        # Fetch objects within the folder to determine last modified date.
         folder_response = @s3_client.list_objects_v2(bucket: @bucket_name, prefix: folder_prefix)
         folder_last_modified = folder_response.contents.map(&:last_modified).max
 
         { name: folder_name, last_modified: folder_last_modified }
       end
 
-      # Collect files with their last modified dates
+      # Collect files with their last modified dates.
       files = response.contents.map do |obj|
         file_name = obj.key.gsub(prefix, "")
         { name: file_name, last_modified: obj.last_modified }
       end
 
-      # Reject any deeper path items for the current level
+      # Reject any deeper path items for the current level.
       files.reject! { |f| f[:name].include?("/") && f[:name] != prefix }
 
-      # Combine and sort folders and files by last modified date
+      # Combine and sort folders and files by last modified date.
       items = folders + files
       items.sort_by! { |item| item[:last_modified] || Time.at(0) }.reverse!
 
-      # Return success with the items
+      # Return success with the items.
       return { status: :success, data: items }
     
     rescue Aws::Errors::MissingCredentialsError => e
-      # Handle missing credentials error
       return { status: :error, message: "Missing AWS credentials: #{e.message}" }
     rescue Aws::S3::Errors::ServiceError => e
-      # Handle AWS S3 service errors
       return { status: :error, message: "AWS S3 error: #{e.message}" }
     rescue StandardError => e
-      # Handle any other exceptions
       return { status: :error, message: "An unexpected error occurred: #{e.message}" }
     end
   end
@@ -158,7 +159,7 @@ class S3Navigator
     @current_path.last
   end
 
-  # Clears all historical paths from bucket traversal
+  # Clears all historical paths from bucket traversal.
   def clear_history
     @current_path = [""]
   end
@@ -170,7 +171,7 @@ class S3Navigator
 
   # Navigates into a folder by setting the current path to the new folder path.
   #
-  # @param folder_name [String] Name of the new folder
+  # @param folder_name [String] Name of the new folder.
   def enter_folder(folder_name)
     @current_path.push("#{@current_path.last}#{folder_name}")
   end

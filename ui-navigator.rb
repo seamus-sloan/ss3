@@ -12,6 +12,8 @@ class UINavigator
     @s3_navigator = s3_navigator
   end
 
+  # Display help messaging
+  # NOTE: This does NOT require the @s3_navigator class to function.
   def help
     CLI::UI::Frame.open("SS3 HELP") do
       puts <<-Help
@@ -38,6 +40,9 @@ class UINavigator
     end
   end
 
+  # Display an error message when unable to find a region.
+  #
+  # @see S3Navigator::initalize
   def show_missing_region_error 
     CLI::UI::Frame.open("AWS Config Error", color: :red) do
       puts CLI::UI.fmt("{{red:Missing default region & profile. Please run 'aws configure' in your terminal to set up your default profile.}}")
@@ -54,7 +59,7 @@ class UINavigator
         exit 0
       when :bucket_navigation
         bucket_navigation
-        # After returning from bucket_navigation, loop back to show_main_menu
+        # After returning from bucket_navigation, loop back to show_main_menu.
       end
     end
   end
@@ -173,7 +178,7 @@ class UINavigator
           )
           action_result = :back_to_main_menu
         
-          # If there's no error, display normal behavior
+          # If there's no error, display normal behavior.
         else
           items = result[:data]  
           total_pages = (items.size / page_size.to_f).ceil
@@ -228,10 +233,10 @@ class UINavigator
     paginated_items = items.slice((page - 1) * page_size, page_size) || []
     options = []
 
-    # Add navigation options
+    # When not at the root of the bucket, provide an option to go back.
     options << { name: "Go Back", action: -> { :go_back } } unless @s3_navigator.is_at_root
 
-    # Add items for the current page
+    # Add options for each file/folder in the current directory.
     paginated_items.each do |item|
       last_modified_str = item[:last_modified]&.strftime('%Y-%m-%d %H:%M:%S') || ''
       item_icon = item[:name].end_with?('/') ? '📁' : '📄'
@@ -252,27 +257,28 @@ class UINavigator
       options << { name: display_name, action: action }
     end
 
-    # Add pagination controls if necessary
+    # Add options for paginating if applicable.
     if total_pages > 1
       options << { name: "⬅️ Previous Page", action: -> { :previous_page } } if page > 1
       options << { name: "➡️ Next Page", action: -> { :next_page } } if page < total_pages
     end
 
+    # Always provide a final option to exit completely back to the main menu.
     options << { name: "❌ Back to Main Menu", action: -> { :back_to_main_menu } }
 
     options
   end
 
-  # Helper function to grab the entire file's extension (i.e. '.tar.gz')
+  # Helper function to grab the entire file's extension (i.e. '.tar.gz').
   #
-  # @param filename [String] The full name of the file
-  # @return [String] The full extension of the file
+  # @param filename [String] The full name of the file.
+  # @return [String] The full extension of the file.
   def full_extension(filename)
     exts = filename.to_s.scan(/(\.[^.]+)(?=\.|$)/)
     exts.flatten.join
   end
 
-  # Display options for downloading a file
+  # Display options for downloading a file.
   def download_item(item)
     CLI::UI::Frame.open("Download #{item[:name]}", color: :magenta) do
       puts "This item will be downloaded to the current directory."
@@ -296,12 +302,11 @@ class UINavigator
     
           case choice
           when :use_original
-            # Replace user's extension with the original extension
+            # Replace user's extension with the original extension.
             base_name = name[0...-user_extension.length]
             name = base_name + original_extension
           when :use_user
-            # Proceed with user's extension
-            # Do nothing
+            # Proceed as normal & use user's file extension.
           when :cancel
             puts "Download cancelled."
             return
