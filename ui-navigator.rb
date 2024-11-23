@@ -263,6 +263,10 @@ class UINavigator
     options
   end
 
+  # Helper function to grab the entire file's extension (i.e. '.tar.gz')
+  #
+  # @param filename [String] The full name of the file
+  # @return [String] The full extension of the file
   def full_extension(filename)
     exts = filename.to_s.scan(/(\.[^.]+)(?=\.|$)/)
     exts.flatten.join
@@ -278,9 +282,11 @@ class UINavigator
       user_extension = full_extension(name)
   
       if user_extension.empty?
-        # No extension in the user's input, append the original extension
+        # When there is no extension given, download the file with the original extension.
         name += original_extension
+
       elsif user_extension.downcase != original_extension.downcase
+        # When the new extension doesn't match, provide options for the user to ensure extension is correct.
         CLI::UI::Frame.open("WARNING: The extension provided does not match the original", color: :red) do
           choice = CLI::UI::Prompt.ask("Please choose an option:") do |handler|
             handler.option("Use original extension (#{original_extension})") { :use_original }
