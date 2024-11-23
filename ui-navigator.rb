@@ -116,7 +116,6 @@ class UINavigator
   # Prompts the user to select a new AWS profile from the available profiles.
   # Updates the S3Navigator with the selected profile.
   def change_aws_profile
-    # Profiles will return :error or :success as [0]
     profiles = @s3_navigator.profiles
 
     if profiles[:status] == :success
@@ -264,11 +263,46 @@ class UINavigator
     options
   end
 
+  def full_extension(filename)
+    exts = filename.to_s.scan(/(\.[^.]+)(?=\.|$)/)
+    exts.flatten.join
+  end
+
   # Display options for downloading a file
   def download_item(item)
     CLI::UI::Frame.open("Download #{item[:name]}", color: :magenta) do
       puts "This item will be downloaded to the current directory."
       name = CLI::UI::Prompt.ask("Enter a new name for the file: ", default: item[:name])
+      
+      original_extension = full_extension(item[:name])
+      user_extension = full_extension(name)
+  
+      if user_extension.empty?
+        # No extension in the user's input, append the original extension
+        name += original_extension
+      elsif user_extension.downcase != original_extension.downcase
+        CLI::UI::Frame.open("WARNING: The extension provided does not match the original", color: :red) do
+          choice = CLI::UI::Prompt.ask("Please choose an option:") do |handler|
+            handler.option("Use original extension (#{original_extension})") { :use_original }
+            handler.option("Use new extension (#{user_extension})") { :use_user }
+            handler.option("Cancel Downloading File") { :cancel }
+          end
+    
+          case choice
+          when :use_original
+            # Replace user's extension with the original extension
+            base_name = name[0...-user_extension.length]
+            name = base_name + original_extension
+          when :use_user
+            # Proceed with user's extension
+            # Do nothing
+          when :cancel
+            puts "Download cancelled."
+            return
+          end
+        end
+      end
+  
       @s3_navigator.download_file(name, item[:name])
     end
   end
