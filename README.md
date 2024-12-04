@@ -33,7 +33,7 @@ Check out the homebrew formula in [my other repository](https://github.com/seamu
 
 ## Future Improvements
 
-- [ ] Ensure downloaded files have the correct extension
+- [x] Ensure downloaded files have the correct extension
 - [ ] Allow for downloading entire folders
 - [ ] Allow for moving files around within a bucket
 - [ ] Add additional options for configuring new profiles
