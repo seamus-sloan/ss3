@@ -1,11 +1,11 @@
 source 'https://rubygems.org'
 
 # aws-sdk
-gem 'aws-sdk-s3', '~> 1.0'
-gem 'ostruct', '~> 0.3'
-gem 'logger', '~> 1.6'
-gem 'base64', '~> 0.1'
-gem 'nokogiri', '~> 1.11'
+gem 'aws-sdk-s3'
+gem 'ostruct'
+gem 'logger'
+gem 'base64'
+gem 'nokogiri'
 
 # other
 gem 'cli-ui'

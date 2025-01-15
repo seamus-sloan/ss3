@@ -21,17 +21,9 @@ GEM
     cli-ui (2.2.3)
     jmespath (1.6.2)
     logger (1.6.1)
-    nokogiri (1.16.7-aarch64-linux)
-      racc (~> 1.4)
-    nokogiri (1.16.7-arm-linux)
-      racc (~> 1.4)
-    nokogiri (1.16.7-arm64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.16.7-x86-linux)
-      racc (~> 1.4)
-    nokogiri (1.16.7-x86_64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.16.7-x86_64-linux)
+    mini_portile2 (2.8.8)
+    nokogiri (1.16.7)
+      mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
     ostruct (0.6.1)
     racc (1.8.1)
@@ -45,12 +37,12 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  aws-sdk-s3 (~> 1.0)
-  base64 (~> 0.1)
+  aws-sdk-s3
+  base64
   cli-ui
-  logger (~> 1.6)
-  nokogiri (~> 1.11)
-  ostruct (~> 0.3)
+  logger
+  nokogiri
+  ostruct
 
 BUNDLED WITH
    2.5.16
